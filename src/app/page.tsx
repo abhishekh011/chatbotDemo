@@ -1,13 +1,37 @@
 "use client";
 import React, { useState } from "react";
 
+// Define the type for each message object
 interface Message {
   type: "user" | "bot";
   content: string;
   options?: string[];
 }
 
-const knowledgeBase = {
+// Define the structure for user responses
+interface UserResponses {
+  age?: string;
+  pain?: string;
+  previousSurgery?: string;
+  treatments?: string;
+}
+
+// Define the knowledge base structure
+interface KnowledgeBase {
+  symptoms: {
+    [key: string]: string[];
+  };
+  eligibility: {
+    [key: string]: string;
+  };
+  nextSteps: {
+    eligible: string;
+    ineligible: string;
+    emergency: string;
+  };
+}
+
+const knowledgeBase: KnowledgeBase = {
   symptoms: {
     pain: [
       "How severe is your knee pain on a scale of 1-10?",
@@ -35,6 +59,7 @@ const knowledgeBase = {
 };
 
 const Home = () => {
+  // Define state with appropriate types
   const [messages, setMessages] = useState<Message[]>([
     {
       type: "bot",
@@ -43,12 +68,12 @@ const Home = () => {
       options: ["Yes, start evaluation", "No, maybe later"],
     },
   ]);
-  const [userResponses, setUserResponses] = useState<any>({});
-  const [currentStep, setCurrentStep] = useState("initial");
+  const [userResponses, setUserResponses] = useState<UserResponses>({});
+  const [currentStep, setCurrentStep] = useState<string>("initial");
 
   const processResponse = (response: string) => {
     setMessages((prev) => [...prev, { type: "user", content: response }]);
-    setUserResponses((prev: any) => ({ ...prev, [currentStep]: response }));
+    setUserResponses((prev) => ({ ...prev, [currentStep]: response }));
 
     let nextMessage: Message;
     switch (currentStep) {
@@ -140,7 +165,7 @@ const Home = () => {
     }, 500);
   };
 
-  const evaluateEligibility = (responses: { pain?: any; treatments?: any }) => {
+  const evaluateEligibility = (responses: UserResponses): boolean => {
     if (responses.pain === "8-10 (Severe)" && responses.treatments === "Yes") {
       return true;
     }
