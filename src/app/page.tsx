@@ -1,101 +1,215 @@
-import Image from "next/image";
+"use client";
+import React, { useState } from "react";
 
-export default function Home() {
+interface Message {
+  type: "user" | "bot";
+  content: string;
+  options?: string[];
+}
+
+const knowledgeBase = {
+  symptoms: {
+    pain: [
+      "How severe is your knee pain on a scale of 1-10?",
+      "Is the pain constant or intermittent?",
+    ],
+    swelling: ["Is there visible swelling?", "When did the swelling start?"],
+    mobility: [
+      "Can you fully bend and straighten your knee?",
+      "Does your knee lock or give way?",
+    ],
+  },
+  eligibility: {
+    age: "What is your age?",
+    previousSurgery: "Have you had any previous knee surgeries?",
+    treatments: "Have you tried conservative treatments like physical therapy?",
+  },
+  nextSteps: {
+    eligible:
+      "Based on your responses, you may be a candidate for knee surgery. Would you like to proceed with the KOOS survey?",
+    ineligible:
+      "Based on your responses, we recommend scheduling a consultation with our physical therapy team first.",
+    emergency:
+      "Your symptoms suggest you should seek immediate medical attention.",
+  },
+};
+
+const Home = () => {
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      type: "bot",
+      content:
+        "Hello! I'm here to help assess your knee condition. Would you like to start the evaluation?",
+      options: ["Yes, start evaluation", "No, maybe later"],
+    },
+  ]);
+  const [userResponses, setUserResponses] = useState<any>({});
+  const [currentStep, setCurrentStep] = useState("initial");
+
+  const processResponse = (response: string) => {
+    setMessages((prev) => [...prev, { type: "user", content: response }]);
+    setUserResponses((prev: any) => ({ ...prev, [currentStep]: response }));
+
+    let nextMessage: Message;
+    switch (currentStep) {
+      case "initial":
+        if (response === "Yes, start evaluation") {
+          nextMessage = {
+            type: "bot",
+            content: knowledgeBase.eligibility.age,
+            options: ["Under 18", "18-40", "41-60", "Over 60"],
+          };
+          setCurrentStep("age");
+        } else {
+          nextMessage = {
+            type: "bot",
+            content: "No problem! Feel free to return when you're ready.",
+            options: ["Start Over"],
+          };
+        }
+        break;
+      case "age":
+        nextMessage = {
+          type: "bot",
+          content: "How severe is your knee pain on a scale of 1-10?",
+          options: ["1-3 (Mild)", "4-7 (Moderate)", "8-10 (Severe)"],
+        };
+        setCurrentStep("pain");
+        break;
+      case "pain":
+        nextMessage = {
+          type: "bot",
+          content: knowledgeBase.eligibility.previousSurgery,
+          options: ["Yes", "No"],
+        };
+        setCurrentStep("surgery");
+        break;
+      case "surgery":
+        nextMessage = {
+          type: "bot",
+          content: knowledgeBase.eligibility.treatments,
+          options: ["Yes", "No"],
+        };
+        setCurrentStep("treatments");
+        break;
+      case "treatments":
+        const isEligible = evaluateEligibility(userResponses);
+        nextMessage = {
+          type: "bot",
+          content: isEligible
+            ? knowledgeBase.nextSteps.eligible
+            : knowledgeBase.nextSteps.ineligible,
+          options: isEligible
+            ? ["Take KOOS Survey", "Schedule Consultation"]
+            : ["Schedule PT", "Start Over"],
+        };
+        setCurrentStep("recommendation");
+        break;
+      case "recommendation":
+        if (response === "Take KOOS Survey") {
+          nextMessage = {
+            type: "bot",
+            content:
+              "Great! Here's the link to the KOOS survey: [KOOS Survey Link]. After completing the survey, our team will review your responses and contact you.",
+            options: ["Start Over"],
+          };
+        } else if (
+          response === "Schedule PT" ||
+          response === "Schedule Consultation"
+        ) {
+          nextMessage = {
+            type: "bot",
+            content:
+              "I'll help you schedule an appointment. Please click here to access our scheduling system: [Scheduling Link]",
+            options: ["Start Over"],
+          };
+        }
+        setCurrentStep("final");
+        break;
+      default:
+        nextMessage = {
+          type: "bot",
+          content: "Would you like to start over?",
+          options: ["Start Over"],
+        };
+        setCurrentStep("initial");
+    }
+
+    setTimeout(() => {
+      setMessages((prev) => [...prev, nextMessage]);
+    }, 500);
+  };
+
+  const evaluateEligibility = (responses: { pain?: any; treatments?: any }) => {
+    if (responses.pain === "8-10 (Severe)" && responses.treatments === "Yes") {
+      return true;
+    }
+    return false;
+  };
+
+  const handleReset = () => {
+    setMessages([messages[0]]);
+    setUserResponses({});
+    setCurrentStep("initial");
+  };
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <div className=" bg-gray-100 py-8 px-4">
+      <div className="w-full max-w-2xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden">
+        <div className="bg-blue-600 p-6">
+          <h2 className="text-2xl font-bold text-white">
+            Knee Surgery Assessment
+          </h2>
+          <p className="text-blue-100 mt-2">
+            Answer a few questions to evaluate your condition
+          </p>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+
+        <div className="h-[500px] overflow-y-auto p-6 bg-gray-50">
+          {messages.map((message, index) => (
+            <div
+              key={index}
+              className={`mb-4 flex ${
+                message.type === "user" ? "justify-end" : "justify-start"
+              }`}
+            >
+              <div
+                className={`max-w-[80%] rounded-2xl px-4 py-3 ${
+                  message.type === "user"
+                    ? "bg-blue-500 text-white"
+                    : "bg-white shadow-md text-gray-800"
+                }`}
+              >
+                {message.content}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="p-6 bg-white border-t border-gray-200">
+          <div className="flex flex-wrap gap-3 justify-center">
+            {messages[messages.length - 1]?.options?.map((option, index) => (
+              <button
+                key={index}
+                onClick={() =>
+                  option === "Start Over"
+                    ? handleReset()
+                    : processResponse(option)
+                }
+                className={`px-6 py-2.5 rounded-lg transition-colors duration-200 ${
+                  option === "Start Over"
+                    ? "border-2 border-gray-300 text-gray-700 hover:bg-gray-100"
+                    : "bg-blue-500 text-white hover:bg-blue-600"
+                } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50`}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
     </div>
   );
-}
+};
+
+export default Home;
